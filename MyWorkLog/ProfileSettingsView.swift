@@ -40,16 +40,16 @@ struct ProfileSettingsView: View {
                     }
                 }
                 
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("InternTrack AI")
-                            .font(.caption.bold())
-                        Text("Minimal & classic work log and report tracker.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 2)
-                }
+//                Section {
+//                    VStack(alignment: .leading, spacing: 4) {
+//                        Text("InternTrack AI")
+//                            .font(.caption.bold())
+//                        Text("Minimal & classic work log and report tracker.")
+//                            .font(.caption2)
+//                            .foregroundColor(.secondary)
+//                    }
+//                    .padding(.vertical, 2)
+//                }
             }
             .navigationTitle("Profile & Settings")
             .alert("Reset All Data?", isPresented: $showingResetAlert) {

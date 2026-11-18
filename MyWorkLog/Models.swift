@@ -87,9 +87,21 @@ struct InternTask: Identifiable, Codable, Equatable {
     var status: TaskStatus
     var assignedDate: Date
     var deadline: Date
-    var completionDate: Date?
+    var activeDate: Date? = nil
+    var completionDate: Date? = nil
     var deliverableNotes: String
     var attachmentName: String?
+    
+    /// Number of days taken to complete the task from activeDate (or assignedDate if activeDate is nil)
+    var completionDurationInDays: Int? {
+        guard let completed = completionDate else { return nil }
+        let start = activeDate ?? assignedDate
+        let calendar = Calendar.current
+        let startDay = calendar.startOfDay(for: start)
+        let endDay = calendar.startOfDay(for: completed)
+        let diff = calendar.dateComponents([.day], from: startDay, to: endDay).day ?? 0
+        return max(1, diff)
+    }
 }
 
 struct UserProfile: Codable, Equatable {

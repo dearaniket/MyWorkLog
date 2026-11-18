@@ -3,6 +3,8 @@ import SwiftUI
 struct DashboardView: View {
     @Bindable var store: TaskStore
     @State private var showingAddTask = false
+    @State private var expandedPriority: TaskPriority? = nil
+    @State private var taskToEdit: InternTask? = nil
     
     var body: some View {
         NavigationStack {
@@ -40,28 +42,100 @@ struct DashboardView: View {
                         MinimalMetricCard(title: "Pending", count: store.pendingTasksCount, color: .orange)
                     }
                     
-                    // Priority Distribution
+                    // Priority Distribution (Expandable)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Tasks by Priority")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Text("Tasks by Priority")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            if expandedPriority != nil {
+                                Button("Collapse") {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        expandedPriority = nil
+                                    }
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            }
+                        }
                         
+                        // Priority Selection Buttons
                         HStack(spacing: 10) {
                             ForEach(TaskPriority.allCases) { priority in
                                 let count = store.count(for: priority)
-                                VStack(spacing: 4) {
-                                    Text(priority.rawValue)
+                                let isSelected = expandedPriority == priority
+                                
+                                Button {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        if expandedPriority == priority {
+                                            expandedPriority = nil
+                                        } else {
+                                            expandedPriority = priority
+                                        }
+                                    }
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Text(priority.rawValue)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("\(count)")
+                                            .font(.title3.bold())
+                                            .foregroundColor(priority.color)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(isSelected ? priority.color.opacity(0.18) : Color(.systemBackground))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(isSelected ? priority.color : Color.clear, lineWidth: 1.5)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        
+                        // Expanded Task List for selected priority
+                        if let selectedPriority = expandedPriority {
+                            let priorityTasks = store.tasks.filter { $0.priority == selectedPriority }
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Divider()
+                                    .padding(.vertical, 4)
+                                
+                                HStack {
+                                    Text("\(selectedPriority.rawValue) Priority Tasks (\(priorityTasks.count))")
+                                        .font(.caption.bold())
+                                        .foregroundColor(selectedPriority.color)
+                                    Spacer()
+                                }
+                                
+                                if priorityTasks.isEmpty {
+                                    Text("No tasks found for \(selectedPriority.rawValue) priority.")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
-                                    Text("\(count)")
-                                        .font(.title3.bold())
-                                        .foregroundColor(priority.color)
+                                        .padding(.vertical, 6)
+                                } else {
+                                    VStack(spacing: 8) {
+                                        ForEach(priorityTasks) { task in
+                                            TaskRowView(task: task) {
+                                                store.toggleStatus(for: task)
+                                            }
+                                            .padding(8)
+                                            .background(Color(.systemBackground))
+                                            .cornerRadius(8)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                taskToEdit = task
+                                            }
+                                        }
+                                    }
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color(.secondarySystemBackground))
-                                .cornerRadius(8)
                             }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
                     .padding()
@@ -123,6 +197,22 @@ struct DashboardView: View {
                         deadline: deadline,
                         deliverableNotes: notes
                     )
+                }
+            }
+            .sheet(item: $taskToEdit) { task in
+                TaskEditorSheet(taskToEdit: task) { title, desc, assignedBy, plat, cat, prio, stat, assignedDate, deadline, notes in
+                    var updated = task
+                    updated.title = title
+                    updated.taskDescription = desc
+                    updated.assignedBy = assignedBy
+                    updated.platform = plat
+                    updated.category = cat
+                    updated.priority = prio
+                    updated.status = stat
+                    updated.assignedDate = assignedDate
+                    updated.deadline = deadline
+                    updated.deliverableNotes = notes
+                    store.updateTask(updated)
                 }
             }
         }

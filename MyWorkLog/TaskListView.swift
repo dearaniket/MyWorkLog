@@ -10,6 +10,7 @@ struct TaskListView: View {
     
     @State private var showingAddTask = false
     @State private var taskToEdit: InternTask? = nil
+    @State private var selectedCompletedTask: InternTask? = nil
     
     enum TaskStatusFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -160,7 +161,11 @@ struct TaskListView: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                taskToEdit = task
+                                if selectedStatusFilter == .completed {
+                                    selectedCompletedTask = task
+                                } else {
+                                    taskToEdit = task
+                                }
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
@@ -225,6 +230,165 @@ struct TaskListView: View {
                     store.updateTask(updated)
                 }
             }
+            .sheet(item: $selectedCompletedTask) { task in
+                CompletedTaskDetailSheet(task: task) {
+                    // Optional edit from completed sheet
+                    taskToEdit = task
+                }
+            }
         }
+    }
+}
+
+// MARK: - Completed Task Detail Sheet
+
+struct CompletedTaskDetailSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let task: InternTask
+    var onEdit: (() -> Void)? = nil
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                // Header overview
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(task.title)
+                                .font(.title3.bold())
+                            Spacer()
+                            Label("Completed", systemImage: "checkmark.circle.fill")
+                                .font(.caption.bold())
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.green.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                        
+                        if !task.taskDescription.isEmpty {
+                            Text(task.taskDescription)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                
+                // Timeline & Completion Details
+                Section("Timeline & Completion Details") {
+                    HStack {
+                        Label("Assign Date", systemImage: "calendar.badge.plus")
+                        Spacer()
+                        Text(dateFormatter.string(from: task.assignedDate))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Label("Active Date", systemImage: "play.circle")
+                        Spacer()
+                        if let activeDate = task.activeDate {
+                            Text(dateFormatter.string(from: activeDate))
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text(dateFormatter.string(from: task.assignedDate))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    HStack {
+                        Label("Completed Date", systemImage: "checkmark.circle")
+                        Spacer()
+                        if let completedDate = task.completionDate {
+                            Text(dateFormatter.string(from: completedDate))
+                                .foregroundColor(.green)
+                                .bold()
+                        } else {
+                            Text("—")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    HStack {
+                        Label("Duration", systemImage: "hourglass")
+                        Spacer()
+                        if let days = task.completionDurationInDays {
+                            Text("\(days) \(days == 1 ? "day" : "days")")
+                                .bold()
+                                .foregroundColor(.blue)
+                        } else {
+                            Text("—")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // Metadata Section
+                Section("Task Information") {
+                    HStack {
+                        Text("Category")
+                        Spacer()
+                        Label(task.category.rawValue, systemImage: task.category.iconName)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Platform")
+                        Spacer()
+                        Label(task.platform.rawValue, systemImage: task.platform.iconName)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Priority")
+                        Spacer()
+                        Text(task.priority.rawValue)
+                            .foregroundColor(task.priority.color)
+                            .bold()
+                    }
+                    
+                    HStack {
+                        Text("Assigned By")
+                        Spacer()
+                        Text(task.assignedBy)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if !task.deliverableNotes.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Deliverable Notes")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(task.deliverableNotes)
+                                .font(.body)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+            .navigationTitle("Completed Task Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") {
+                        dismiss()
+                        onEdit?()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

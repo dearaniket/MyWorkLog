@@ -76,6 +76,7 @@ final class TaskStore {
         deadline: Date,
         deliverableNotes: String
     ) {
+        let activeDate = (status == .inProgress) ? Date() : ((status == .completed) ? assignedDate : nil)
         let completionDate = (status == .completed) ? Date() : nil
         let newTask = InternTask(
             title: title,
@@ -87,6 +88,7 @@ final class TaskStore {
             status: status,
             assignedDate: assignedDate,
             deadline: deadline,
+            activeDate: activeDate,
             completionDate: completionDate,
             deliverableNotes: deliverableNotes
         )
@@ -97,8 +99,14 @@ final class TaskStore {
     func updateTask(_ task: InternTask) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             var updated = task
+            if updated.status == .inProgress && updated.activeDate == nil {
+                updated.activeDate = Date()
+            }
             if updated.status == .completed && tasks[index].status != .completed {
                 updated.completionDate = Date()
+                if updated.activeDate == nil {
+                    updated.activeDate = tasks[index].activeDate ?? updated.assignedDate
+                }
                 logActivity(action: "Completed task", taskTitle: updated.title)
             } else if updated.status != .completed {
                 updated.completionDate = nil
@@ -132,10 +140,14 @@ final class TaskStore {
             switch updated.status {
             case .pending:
                 updated.status = .inProgress
+                updated.activeDate = Date()
                 updated.completionDate = nil
                 logActivity(action: "In Progress", taskTitle: updated.title)
             case .inProgress:
                 updated.status = .completed
+                if updated.activeDate == nil {
+                    updated.activeDate = tasks[index].activeDate ?? updated.assignedDate
+                }
                 updated.completionDate = Date()
                 logActivity(action: "Completed", taskTitle: updated.title)
             case .completed:
@@ -239,7 +251,9 @@ final class TaskStore {
         let calendar = Calendar.current
         let today = Date()
         
+        let dateMinus5 = calendar.date(byAdding: .day, value: -5, to: today) ?? today
         let dateMinus4 = calendar.date(byAdding: .day, value: -4, to: today) ?? today
+        let dateMinus3 = calendar.date(byAdding: .day, value: -3, to: today) ?? today
         let dateMinus2 = calendar.date(byAdding: .day, value: -2, to: today) ?? today
         let dateMinus1 = calendar.date(byAdding: .day, value: -1, to: today) ?? today
         let datePlus2 = calendar.date(byAdding: .day, value: 2, to: today) ?? today
@@ -254,8 +268,9 @@ final class TaskStore {
                 category: .documentationPPT,
                 priority: .high,
                 status: .completed,
-                assignedDate: dateMinus4,
+                assignedDate: dateMinus5,
                 deadline: dateMinus2,
+                activeDate: dateMinus4,
                 completionDate: dateMinus2,
                 deliverableNotes: "Slides exported to PDF and sent via email."
             ),
@@ -267,8 +282,9 @@ final class TaskStore {
                 category: .bannerDesign,
                 priority: .medium,
                 status: .completed,
-                assignedDate: dateMinus2,
+                assignedDate: dateMinus3,
                 deadline: dateMinus1,
+                activeDate: dateMinus2,
                 completionDate: dateMinus1,
                 deliverableNotes: "Delivered 1080x1080 and 1080x1920 PNG assets."
             ),
@@ -282,6 +298,7 @@ final class TaskStore {
                 status: .inProgress,
                 assignedDate: today,
                 deadline: datePlus2,
+                activeDate: today,
                 completionDate: nil,
                 deliverableNotes: "Draft in progress."
             ),
@@ -295,6 +312,7 @@ final class TaskStore {
                 status: .pending,
                 assignedDate: today,
                 deadline: datePlus5,
+                activeDate: nil,
                 completionDate: nil,
                 deliverableNotes: "Awaiting final copy."
             )
